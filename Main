@@ -1,1 +1,135 @@
-Hello World!
+// Karim Ahmed
+// Programming Language: C++
+// (MAIN PROGRAM)
+
+#include <iostream>
+#include "PullQueue.h"
+#include "servergroup.h"
+#include <ctime>
+using namespace std;
+#define NEWLINE '\n'
+
+//Struct Customer that has the timestamp of a customer and transaction type of a customer
+struct Customer
+{
+	int TimeStamp;
+	int TransactionType;
+	// Overloaded operator used to pull special customers for special purpose server
+	bool operator ==(Customer& Item)
+	{
+		return TransactionType == Item.TransactionType;
+	}
+
+};
+
+
+int main()
+{
+	//Declare Variables
+	int SimulationLength;
+	int GeneralPSNum;
+	bool SpecialPurposeServer;
+	char SPS;
+	vector<int> Transactions;
+	int TransactionVectorTypes;
+	int AverageArrivalTime;
+	bool Quit = false;
+	//---------------------------------------------------------------------------------------------
+	//Simulation Loop
+	while (!Quit)
+	//---------------------------------------------------------------------------------------------
+	{
+		//Assign Values to variables entered by the user
+		cout << "Enter Simulation Length in Seconds: ";
+		cin >> SimulationLength;
+		cout << "Enter How many General Purpose Servers will be used for the Simulation: ";
+		cin >> GeneralPSNum;
+
+		cout << "Would you like to have a Special Purpose Server in the Simulation?(y/n)";
+		cin >> SPS;
+		if (SPS == 'y')
+			SpecialPurposeServer = true;
+		else if (SPS == 'n')
+			SpecialPurposeServer = false;
+		ServerGroup Servers(GeneralPSNum);
+		cout << "How many kinds of transactions? ";
+		cin >> TransactionVectorTypes;
+		Transactions.resize(TransactionVectorTypes);
+		for (int i = 0; i < Transactions.size(); i++)
+		{
+			cout << "Time of Transaction" << i + 1 << ": ";
+			cin >> Transactions[i];
+			cout << NEWLINE;
+		}
+		cout << "On Average, What would be the time between two customer arrivals (in seconds): ";
+		cin >> AverageArrivalTime;
+
+		//----------------------------------------------------------------------------------------------------
+		// MAIN SECTION OF SIMULATION
+		srand(0);
+		PullQueue <Customer> Customers;
+		int NumCustomers = 0;
+		float AverageWaitingTime = 0;
+
+		//SIMULATION LOOP
+		for (int clock = 0; clock < SimulationLength; clock++)
+		{
+			Servers.decServers();
+			float ArrivalProb = 1.0 / float(AverageArrivalTime);
+			float RandomCustomerProb = float((rand())) / float(RAND_MAX);
+			// if we get a new customer
+			if (RandomCustomerProb > 0.0 && RandomCustomerProb < ArrivalProb)
+			{
+				//give customer time stamp of current clock and a random transaction type,
+				//then put him in the Customers line
+				Customer NewCus;
+				NewCus.TimeStamp = clock;
+				NewCus.TransactionType = rand() % TransactionVectorTypes;
+				Customers.enqueue(NewCus);
+			}
+
+			//Declare customer Serving now
+			Customer Serving;
+			//if we have a free Special purpose server and User is using it 
+			if (Servers.spServerFree() && SpecialPurposeServer)
+			{
+				// pull the customer with the transaction type of 0, which is the lowest transaction time
+				Customer SpecialCus;
+				SpecialCus.TransactionType = 0;
+				if (Customers.pull(SpecialCus, Serving))
+				{
+
+					Servers.usespServer(Transactions[Serving.TransactionType]);
+					float Total = float(clock) - float(Serving.TimeStamp);
+					AverageWaitingTime += Total;
+					NumCustomers++;
+				}
+			}
+			// If we have a free server and our Customers line is not empty 
+			if (Servers.serverFree() && (!(Customers.isEmpty())))
+			{
+				// take the first customer in line
+				Customers.dequeue(Serving);
+				Servers.useServer(Transactions[Serving.TransactionType]);
+				float Total = float(clock) - float(Serving.TimeStamp);
+				AverageWaitingTime += Total;
+				NumCustomers++;
+			}
+		}
+		cout << "AverageWaitingTime: " << AverageWaitingTime / NumCustomers << endl;
+		// empty out the customer's line
+		Customers.MakeEmpty();
+		cout << NEWLINE;
+
+		//Check if user wants another simulation
+		char SimulationTrial;
+		cout << "Try another Simulation?(y/n) ";
+		cin >> SimulationTrial;
+		if (SimulationTrial == 'n')
+			Quit = true;
+		else if (SimulationTrial == 'y')
+			Quit = false;
+	}
+	return 0;
+    
+}
